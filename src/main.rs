@@ -29,6 +29,29 @@ use crate::render::renderer::EnvironmentalRenderer;
 use crate::sensors::firmware::FirmwareState;
 use crate::sensors::hal::HardwareAbstractionLayer;
 
+#[cfg(target_os = "windows")]
+mod win_unhide {
+    use std::ffi::c_void;
+
+    extern "system" {
+        fn FindWindowA(lpClassName: *const u8, lpWindowName: *const u8) -> *mut c_void;
+        fn ShowWindow(hWnd: *mut c_void, nCmdShow: i32) -> i32;
+        fn SetForegroundWindow(hWnd: *mut c_void) -> i32;
+    }
+
+    pub fn force_show_window() {
+        unsafe {
+            let class_name = b"MINIQUADAPP\0";
+            let hwnd = FindWindowA(class_name.as_ptr(), std::ptr::null());
+            if !hwnd.is_null() {
+                ShowWindow(hwnd, 9); // SW_RESTORE
+                ShowWindow(hwnd, 5); // SW_SHOW
+                SetForegroundWindow(hwnd);
+            }
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about = "RivSim: Autonomous Catamaran Digital Twin Physics Engine")]
 struct CliArgs {
@@ -142,10 +165,17 @@ async fn main() {
     let mut manual_override = false;
     let mut conveyor_toggle = false;
     let mut headlights_manual: Option<bool> = None;
+    let mut window_unhidden = false;
 
     // Main Interactive Simulation Loop
     loop {
         let dt = get_frame_time().clamp(0.001, 0.05);
+
+        #[cfg(target_os = "windows")]
+        if !window_unhidden {
+            win_unhide::force_show_window();
+            window_unhidden = true;
+        }
 
         // 1. Process Inbound Commands from WebSocket (Flutter) and MCP
         while let Ok(cmd) = cmd_rx.try_recv() {

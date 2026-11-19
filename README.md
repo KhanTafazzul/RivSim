@@ -124,3 +124,4 @@ The embedded MCP server (`http://127.0.0.1:8000/mcp`) provides 9 live AI test or
 ## Author & License
 
 Developed for autonomous river-cleaning research. MIT License.
+
